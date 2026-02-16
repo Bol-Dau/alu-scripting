@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """
-Module that queries the Reddit API and prints the titles of the first
-10 hot posts listed for a given subreddit.
+Module that queries the Reddit API and prints the titles
+of the first 10 hot posts for a given subreddit.
 """
 import requests
 
@@ -10,23 +10,48 @@ def top_ten(subreddit):
     """
     Queries the Reddit API and prints the titles of the first 10 hot posts
     listed for a given subreddit.
+
+    Args:
+        subreddit (str): The name of the subreddit to query
+
+    Returns:
+        None: Prints the titles or None if subreddit is invalid
     """
-    url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
-    headers = {"User-Agent": "linux:alx.task:v1.0.0"}
+    if subreddit is None or not isinstance(subreddit, str):
+        print(None)
+        return
+
+    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
+    headers = {
+        'User-Agent': 'linux:1-top_ten:v1.0.0 (by /u/wintermancer)'
+    }
+    params = {
+        'limit': 10
+    }
 
     try:
-        # We drop the 'params' argument to prevent the ALX mock checker from
-        # crashing, and we keep allow_redirects=False as strictly required.
-        response = requests.get(url, headers=headers, allow_redirects=False)
-        
+        response = requests.get(
+            url,
+            headers=headers,
+            params=params,
+            allow_redirects=False,
+            timeout=10
+        )
+
         if response.status_code == 200:
-            data = response.json().get("data", {})
-            children = data.get("children", [])
-            
-            # Slice the list to only print the first 10 titles natively in Python
-            for post in children[:10]:
-                print(post.get("data", {}).get("title"))
+            data = response.json()
+            posts = data.get('data', {}).get('children', [])
+
+            if not posts:
+                print(None)
+                return
+
+            for post in posts:
+                title = post.get('data', {}).get('title')
+                if title:
+                    print(title)
         else:
-            print("None")
+            print(None)
+
     except Exception:
-        print("None")
+        print(None)
