@@ -1,55 +1,24 @@
 #!/usr/bin/python3
 """
-1-top_ten.py
-
-Prints the titles of the first 10 hot posts for a given subreddit using
-Reddit's public API. Prints 'None' if the subreddit is invalid or cannot
-be retrieved without redirects.
+Queries the Reddit API and prints the titles of the first
+10 hot posts for a given subreddit.
 """
 import requests
 
 
 def top_ten(subreddit):
-    """
-    Print the titles of the first 10 hot posts.
-    If invalid or no posts, print 'None'.
-    """
-    if not subreddit or not isinstance(subreddit, str):
-        print("None")
-        return
-
-    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
-    headers = {"User-Agent": "ALU-API-Advanced/1.0"}
-    params = {"limit": 10}
+    """Prints the titles of the first 10 hot posts for a given subreddit."""
+    url = "https://www.reddit.com/r/{}/hot.json?limit=10".format(subreddit)
+    headers = {"User-Agent": "linux:api_advanced:v1.0 (by /u/solomon)"}
 
     try:
-        resp = requests.get(
-            url,
-            headers=headers,
-            params=params,
-            allow_redirects=False,
-            timeout=10,
-        )
-    except requests.RequestException:
-        print("None")
-        return
+        response = requests.get(url, headers=headers, allow_redirects=False)
+        if response.status_code != 200:
+            return  # Do nothing for invalid subreddit
 
-    if resp.status_code != 200:
-        # Includes 3xx (redirect to search) and 4xx/5xx as invalid
-        print("None")
-        return
+        posts = response.json().get("data", {}).get("children", [])
+        for post in posts:
+            print(post.get("data", {}).get("title"))
 
-    try:
-        children = resp.json().get("data", {}).get("children", [])
-    except ValueError:
-        print("None")
-        return
-
-    if not children:
-        print("None")
-        return
-
-    for post in children:
-        title = post.get("data", {}).get("title")
-        if title is not None:
-            print(title)
+    except Exception:
+        pass
