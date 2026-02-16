@@ -1,103 +1,70 @@
 #!/usr/bin/python3
 """
-3-count.py
-
-Recursively queries Reddit's API for all hot post titles of a subreddit
-and prints a sorted count of given keywords.
-
-Rules:
-- Case-insensitive matching.
-- Exact token match (space-delimited); do not match substrings.
-- Do not count tokens like 'java.' or 'java!' as 'java'.
-- Duplicate keywords in word_list multiply the final count.
-- Print nothing if subreddit is invalid or there are no matches.
+Recursive function that queries the Reddit API,
+parses hot article titles, and counts given keywords.
 """
 import requests
 
 
-def count_words(subreddit, word_list):
+def count_words(subreddit, word_list, hot_list=None, after=None, counts=None):
     """
-    Print the keyword counts in descending order by count, then A–Z.
-    Words are printed in lowercase; words with zero matches are skipped.
+    Recursively count occurrences of words in all hot post titles.
+    Prints results sorted by descending count and alphabetically.
     """
-    if not subreddit or not isinstance(subreddit, str):
-        return
-
-    if not word_list:
-        return
-
-    # Normalize word_list to lowercase and aggregate duplicate weights.
-    weights = {}
-    for w in word_list:
-        lw = w.lower()
-        if lw:
-            weights[lw] = weights.get(lw, 0) + 1
-
-    # Internal recursive helper to gather counts across pages.
-    def _recurse(after=None, counts=None):
-        if counts is None:
-            counts = {}
-
-        url = f"https://www.reddit.com/r/{subreddit}/hot.json"
-        headers = {"User-Agent": "ALU-API-Advanced/1.0"}
-        params = {"limit": 100}
-        if after:
-            params["after"] = after
-
-        try:
-            resp = requests.get(
-                url,
-                headers=headers,
-                params=params,
-                allow_redirects=False,
-                timeout=10,
-            )
-        except requests.RequestException:
-            return None
-
-        if resp.status_code != 200:
-            return None
-
-        try:
-            data = resp.json().get("data", {})
-        except ValueError:
-            return None
-
-        children = data.get("children", [])
-
-        # Count exact token matches (space-delimited) without stripping
-        # punctuation, as required.
-        for post in children:
-            title = post.get("data", {}).get("title", "")
-            tokens = [t.lower() for t in title.split()]
-            for word in weights.keys():
-                # Count occurrences of the exact word among tokens.
-                occ = sum(1 for t in tokens if t == word)
-                if occ:
-                    counts[word] = counts.get(word, 0) + occ
-
-        next_after = data.get("after")
-        if next_after:
-            return _recurse(next_after, counts)
-
-        return counts
-
-    counts = _recurse(after=None, counts={})
+    if hot_list is None:
+        hot_list = []
     if counts is None:
-        # Invalid subreddit or request error -> print nothing
+        counts = {}
+
+    # Prepare URL and headers
+    url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
+    headers = {"User-Agent": "linux:api_advanced:v1.0 (by /u/solomon)"}
+    params = {"limit": 100}
+    if after:
+        params["after"] = after
+
+    try:
+        response = requests.get(
+            url,
+            headers=headers,
+            allow_redirects=False,
+            params=params
+        )
+        if response.status_code != 200:
+            if counts:
+                _print_counts(counts)
+            return
+
+        data = response.json().get("data", {})
+        children = data.get("children", [])
+        for post in children:
+            title = post.get("data", {}).get("title", "").lower()
+            for word in word_list:
+                word_lc = word.lower()
+                # Count exact whole words only (split by spaces)
+                current_count = counts.get(word_lc, 0)
+                counts[word_lc] = current_count + title.split().count(word_lc)
+
+        after = data.get("after")
+        if after:
+            # Recursive call for next page
+            count_words(subreddit, word_list, hot_list, after, counts)
+        else:
+            # No more pages, print counts
+            _print_counts(counts)
+
+    except Exception:
+        # Do nothing if subreddit is invalid or request fails
         return
 
-    # Multiply by duplicate weights and filter zeros
-    final = {}
-    for word, weight in weights.items():
-        total = counts.get(word, 0) * weight
-        if total > 0:
-            final[word] = total
 
-    if not final:
-        # No matches -> print nothing
+def _print_counts(counts):
+    """Helper function to print counts sorted by requirements"""
+    # Remove words with 0 occurrences
+    filtered = {k: v for k, v in counts.items() if v > 0}
+    if not filtered:
         return
-
-    # Sort by (-count, word) and print
-    for word, total in sorted(final.items(), key=lambda x: (-x[1], x[0])):
-        print(f"{word}: {total}")
+    # Sort: descending by count, then alphabetically
+    sorted_counts = sorted(filtered.items(), key=lambda x: (-x[1], x[0]))
+    for word, count in sorted_counts:
+        print("{}: {}".format(word, count))
