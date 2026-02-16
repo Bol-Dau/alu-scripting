@@ -2,10 +2,11 @@
 """
 0-subs.py
 
-Provides a function to return the total number of subscribers for a
-given subreddit using Reddit's public API. Returns 0 for invalid
-subreddits.
+Defines a function that returns the total number of subscribers for
+a given subreddit using Reddit's public API. Returns 0 if the subreddit
+is invalid or cannot be retrieved without redirects.
 """
+
 import requests
 
 
